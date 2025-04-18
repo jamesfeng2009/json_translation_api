@@ -1,0 +1,15 @@
+version: '3.7'
+
+services:  
+  scanner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: api
+    container_name: api
+    ports:
+      - "80:3001"
+    restart: always
+    command: ["api"]
+    volumes:
+      - ./config.yml:/root/config.yml
