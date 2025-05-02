@@ -11,6 +11,7 @@ import { WebhookModule } from './modules/webhook/webhook.module';
 import { WorkerModule } from './modules/worker/worker.module';
 import { CustomLogger } from './common/utils/logger.service';
 import { CircuitBreakerService } from './common/utils/circuit-breaker.service';
+import { Options } from '@mikro-orm/core';
 
 @Module({
   imports: [
@@ -18,15 +19,16 @@ import { CircuitBreakerService } from './common/utils/circuit-breaker.service';
       isGlobal: true,
     }),
     MikroOrmModule.forRoot({
+      entities: ['./dist/**/*.entity.js'],
+      entitiesTs: ['./src/**/*.entity.ts'],
+      dbName: process.env.DB_NAME,
       type: 'postgresql',
       host: process.env.DB_HOST,
       port: parseInt(process.env.DB_PORT, 10),
       user: process.env.DB_USERNAME,
       password: process.env.DB_PASSWORD,
-      dbName: process.env.DB_NAME,
-      autoLoadEntities: true,
       debug: process.env.NODE_ENV === 'development',
-    }),
+    } as Options),
     BullModule.forRootAsync({
       useFactory: (configService: ConfigService) => ({
         redis: {

@@ -15,7 +15,7 @@ export class StripeService {
     private readonly em: EntityManager,
   ) {
     this.stripe = new Stripe(this.configService.get('STRIPE_SECRET_KEY'), {
-      apiVersion: '2023-10-16',
+      apiVersion: '2023-08-16',
     });
   }
 

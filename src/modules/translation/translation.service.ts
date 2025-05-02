@@ -1,44 +1,45 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectRepository } from '@mikro-orm/nestjs';
-import { EntityRepository } from '@mikro-orm/core';
-import { Translation } from '../../entities/translation.entity';
-import { InjectQueue } from '@nestjs/bull';
-import { Queue } from 'bull';
-import { WebhookService } from '../webhook/webhook.service';
+import { EntityManager } from '@mikro-orm/core';
 import { TranslateGeneralRequest, GetDetectLanguageRequest } from '@alicloud/alimt20181012';
 import { RuntimeOptions } from '@alicloud/tea-util';
-import { Client } from '@alicloud/alimt20181012';
-import { TranslationRequest, TranslationResponse } from '../../models/models';
-import { EntityManager } from '@mikro-orm/core';
-import { TranslationTask, UserJsonData, CharacterUsageLog, CharacterUsageLogDaily, WebhookConfig } from './entities/translation-task.entity';
-import { TranslationTaskPayload, WebhookResponse, SendRetry } from './dto/translation-task.dto';
+import Alimt from '@alicloud/alimt20181012';
+import { Translation } from './entities/translation.entity';
+import { TranslationTask, UserJsonData } from './entities/translation-task.entity';
+import { SendRetry } from './entities/send-retry.entity';
 import { v4 as uuidv4 } from 'uuid';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { TranslationUtils, TranslationConfig } from './utils/translation.utils';
+import { WebhookService } from '../webhook/webhook.service';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
+import { CharacterUsageLog, CharacterUsageLogDaily, WebhookConfig } from './entities/translation-task.entity';
+import { WebhookResponse } from './dto/translation-task.dto';
 
 @Injectable()
 export class TranslationService {
   private readonly logger = new Logger(TranslationService.name);
-  private readonly translateClient: Client;
+  private readonly translateClient: Alimt;
   private readonly sendQueue: Array<{ userId: string; translationResult: string; taskId: string }> = [];
 
   constructor(
-    @InjectRepository(Translation)
-    private readonly translationRepository: EntityRepository<Translation>,
-    @InjectQueue('translation') private readonly translationQueue: Queue,
-    private readonly webhookService: WebhookService,
     private readonly configService: ConfigService,
     private readonly em: EntityManager,
     private readonly httpService: HttpService,
+    private readonly webhookService: WebhookService,
+    @InjectQueue('translation') private readonly translationQueue: Queue,
     private readonly translationUtils: TranslationUtils,
   ) {
-    // 初始化阿里云翻译客户端
-    this.translateClient = new Client({
+    this.translateClient = new Alimt({
       accessKeyId: this.configService.get('ALIYUN_ACCESS_KEY_ID'),
       accessKeySecret: this.configService.get('ALIYUN_ACCESS_KEY_SECRET'),
       endpoint: 'mt.aliyuncs.com',
+      toMap: () => ({
+        accessKeyId: this.configService.get('ALIYUN_ACCESS_KEY_ID'),
+        accessKeySecret: this.configService.get('ALIYUN_ACCESS_KEY_SECRET'),
+        endpoint: 'mt.aliyuncs.com'
+      })
     });
     this.startSendQueueProcessor();
   }
@@ -54,21 +55,19 @@ export class TranslationService {
     }, 1000);
   }
 
-  async createTranslationTask(payload: TranslationTaskPayload): Promise<TranslationTask> {
+  async createTranslationTask(userId: string, content: string): Promise<TranslationTask> {
     const task = this.em.create(TranslationTask, {
       id: uuidv4(),
-      userId: payload.userId,
-      taskId: payload.taskId,
-      isTranslated: false,
-      charTotal: payload.charTotal,
+      userId,
+      content,
+      status: 'pending',
     });
-
     await this.em.persistAndFlush(task);
     return task;
   }
 
   async handleTranslationTask(taskId: string): Promise<void> {
-    const task = await this.em.findOne(TranslationTask, { taskId });
+    const task = await this.em.findOne(TranslationTask, { id: taskId });
     if (!task) {
       throw new Error('Translation task not found');
     }
@@ -98,7 +97,7 @@ export class TranslationService {
         this.sendQueue.push({
           userId: task.userId,
           translationResult: translatedJson,
-          taskId: task.taskId,
+          taskId: task.id,
         });
       }
     } catch (error) {
@@ -221,15 +220,19 @@ export class TranslationService {
 
   async translate(
     text: string[],
-    sourceLang?: string,
     targetLang: string,
-  ): Promise<TranslationResponse> {
-    // TODO: 实现实际的翻译逻辑，调用翻译 API
-    // 这里只是一个示例实现
-    return {
-      detectedSourceLanguage: sourceLang || 'auto',
-      text: text.join(' '),
-    };
+    sourceLang?: string,
+  ): Promise<string[]> {
+    const request = new TranslateGeneralRequest({
+      sourceLanguage: sourceLang || 'auto',
+      targetLanguage: targetLang,
+      sourceText: text.join('\n'),
+      formatType: 'text',
+    });
+
+    const runtime = new RuntimeOptions({});
+    const response = await this.translateClient.translateGeneralWithOptions(request, runtime);
+    return response.body.data.translated.split('\n');
   }
 
   async updateTranslationStatus(
@@ -237,7 +240,7 @@ export class TranslationService {
     status: string,
     targetText?: string,
   ) {
-    const translation = await this.translationRepository.findOne({ id: translationId });
+    const translation = await this.em.findOne(Translation, { id: translationId });
     if (!translation) {
       throw new Error('Translation not found');
     }
@@ -247,9 +250,8 @@ export class TranslationService {
       translation.targetText = targetText;
     }
 
-    await this.translationRepository.persistAndFlush(translation);
+    await this.em.persistAndFlush(translation);
 
-    // 如果翻译完成，触发 webhook
     if (status === 'completed' && targetText) {
       await this.webhookService.notifyTranslationComplete(
         translation.userId,
@@ -262,11 +264,11 @@ export class TranslationService {
   }
 
   async getTranslation(taskId: string): Promise<Translation | null> {
-    return this.translationRepository.findOne({ taskId });
+    return this.em.findOne(Translation, { id: taskId });
   }
 
   async getTranslationsByUser(userId: string): Promise<Translation[]> {
-    return this.translationRepository.find({ userId });
+    return this.em.find(Translation, { userId });
   }
 
   async translateText(
@@ -329,4 +331,4 @@ export class TranslationService {
 
     return this.translationUtils.countJsonChars(jsonData, config);
   }
-} 
+}

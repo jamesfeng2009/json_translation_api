@@ -3,19 +3,22 @@ import { Entity, PrimaryKey, Property } from '@mikro-orm/core';
 @Entity()
 export class TranslationTask {
   @PrimaryKey()
-  id: string;
+  id!: string;
 
   @Property()
-  userId: string;
+  userId!: string;
 
   @Property()
-  taskId: string;
+  content!: string;
+
+  @Property()
+  status!: string;
 
   @Property()
   isTranslated: boolean = false;
 
   @Property()
-  charTotal: number;
+  charTotal: number = 0;
 
   @Property()
   createdAt: Date = new Date();

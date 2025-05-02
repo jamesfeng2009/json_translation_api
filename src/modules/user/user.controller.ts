@@ -4,7 +4,6 @@ import { ApiKeyService } from './api-key.service';
 import { UsageService } from './usage.service';
 import { SubscriptionService } from './subscription.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { ApiKeyGuard } from '../auth/guards/api-key.guard';
 
 @ApiTags('user')
 @Controller('user')
@@ -42,4 +41,4 @@ export class UserController {
   async getCurrentPlan(@Req() req: any) {
     return this.subscriptionService.getCurrentPlan(req.user.id);
   }
-} 
+}

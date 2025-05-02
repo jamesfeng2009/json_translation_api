@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { TranslateService } from '../translation.service';
 
 export interface TranslationConfig {
   sourceData: any;
@@ -251,4 +250,4 @@ export class TranslationUtils {
   private countString(text: string): number {
     return text.length;
   }
-} 
+}
