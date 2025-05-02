@@ -1,4 +1,5 @@
-import { Entity, PrimaryKey, Property } from '@mikro-orm/core';
+import { Entity, PrimaryKey, Property, ManyToOne } from '@mikro-orm/core';
+import { SubscriptionPlan } from '../../subscription/entities/subscription-plan.entity';
 
 @Entity()
 export class User {
@@ -10,6 +11,9 @@ export class User {
 
   @Property()
   password!: string;
+
+  @ManyToOne(() => SubscriptionPlan)
+  subscriptionPlan!: SubscriptionPlan;
 
   @Property()
   createdAt: Date = new Date();

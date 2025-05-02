@@ -1,15 +1,12 @@
 import { Module } from '@nestjs/common';
-import { BullModule } from '@nestjs/bull';
+import { WebhookController } from './webhook.controller';
 import { WebhookService } from './webhook.service';
-import { WebhookProcessor } from './webhook.processor';
+import { SubscriptionModule } from '../subscription/subscription.module';
 
 @Module({
-  imports: [
-    BullModule.registerQueue({
-      name: 'webhook',
-    }),
-  ],
-  providers: [WebhookService, WebhookProcessor],
+  imports: [SubscriptionModule],
+  controllers: [WebhookController],
+  providers: [WebhookService],
   exports: [WebhookService],
 })
 export class WebhookModule {} 

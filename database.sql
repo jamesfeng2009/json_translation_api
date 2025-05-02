@@ -91,6 +91,28 @@ CREATE TABLE translation_requests (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create webhook_config table
+CREATE TABLE webhook_config (
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL,
+    webhook_url TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES "user"(id) ON DELETE CASCADE
+);
+
+-- Create send_retry table
+CREATE TABLE send_retry (
+    id VARCHAR(36) PRIMARY KEY,
+    webhook_id VARCHAR(36) NOT NULL,
+    task_id VARCHAR(36) NOT NULL,
+    attempt INTEGER NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    payload TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (webhook_id) REFERENCES webhook_config(id) ON DELETE CASCADE
+);
+
 -- Create indexes
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_api_keys_key ON api_keys(key);
@@ -103,6 +125,9 @@ CREATE INDEX idx_translation_requests_user_id ON translation_requests(user_id);
 CREATE INDEX idx_translation_requests_api_key_id ON translation_requests(api_key_id);
 CREATE INDEX idx_user_subscriptions_user_id ON user_subscriptions(user_id);
 CREATE INDEX idx_user_subscriptions_plan_id ON user_subscriptions(plan_id);
+CREATE INDEX idx_webhook_config_user_id ON webhook_config(user_id);
+CREATE INDEX idx_send_retry_webhook_id ON send_retry(webhook_id);
+CREATE INDEX idx_send_retry_created_at ON send_retry(created_at);
 
 -- Insert initial subscription plans
 INSERT INTO subscription_plans (
@@ -249,4 +274,20 @@ BEGIN
     -- Check if usage exceeds limit
     RETURN (v_current_usage + p_characters_count) <= v_plan_limit;
 END;
-$$ LANGUAGE plpgsql; 
+$$ LANGUAGE plpgsql;
+
+-- Add comments to tables and columns
+COMMENT ON TABLE webhook_config IS 'Webhook configuration table';
+COMMENT ON TABLE send_retry IS 'Webhook send retry history table';
+COMMENT ON COLUMN webhook_config.id IS 'Primary key';
+COMMENT ON COLUMN webhook_config.user_id IS 'User ID who owns this webhook config';
+COMMENT ON COLUMN webhook_config.webhook_url IS 'Webhook URL to send notifications';
+COMMENT ON COLUMN webhook_config.created_at IS 'Record creation timestamp';
+COMMENT ON COLUMN webhook_config.updated_at IS 'Record last update timestamp';
+COMMENT ON COLUMN send_retry.id IS 'Primary key';
+COMMENT ON COLUMN send_retry.webhook_id IS 'Reference to webhook_config';
+COMMENT ON COLUMN send_retry.task_id IS 'Translation task ID';
+COMMENT ON COLUMN send_retry.attempt IS 'Retry attempt number';
+COMMENT ON COLUMN send_retry.status IS 'Retry status (success/failed)';
+COMMENT ON COLUMN send_retry.payload IS 'Webhook payload data';
+COMMENT ON COLUMN send_retry.created_at IS 'Record creation timestamp'; 
