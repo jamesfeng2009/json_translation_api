@@ -17,10 +17,7 @@ export class TranslationController {
   @ApiResponse({ status: 400, description: '请求参数错误' })
   @ApiResponse({ status: 401, description: '未授权' })
   async createTranslationTask(@Req() req: any, @Body() payload: TranslationTaskPayload) {
-    return this.translationService.createTranslationTask({
-      ...payload,
-      userId: req.user.id,
-    });
+    return this.translationService.createTranslationTask(req.user.id, payload.taskId);
   }
 
   @Get(':id')

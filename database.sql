@@ -1,12 +1,11 @@
--- Create database
-CREATE DATABASE json_translation_api;
-\c json_translation_api;
+-- CREATE DATABASE json_translation_api;
+-- 已存在时无需重复创建
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Create users table
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
@@ -16,7 +15,7 @@ CREATE TABLE users (
 );
 
 -- Create api_keys table
-CREATE TABLE api_keys (
+CREATE TABLE IF NOT EXISTS api_keys (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     key VARCHAR(255) UNIQUE NOT NULL,
@@ -27,7 +26,7 @@ CREATE TABLE api_keys (
 );
 
 -- Create subscription_plans table
-CREATE TABLE subscription_plans (
+CREATE TABLE IF NOT EXISTS subscription_plans (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
     description TEXT,
@@ -43,7 +42,7 @@ CREATE TABLE subscription_plans (
 );
 
 -- Create user_subscriptions table
-CREATE TABLE user_subscriptions (
+CREATE TABLE IF NOT EXISTS user_subscriptions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     plan_id UUID REFERENCES subscription_plans(id) ON DELETE CASCADE,
@@ -57,7 +56,7 @@ CREATE TABLE user_subscriptions (
 );
 
 -- Create usage_logs table
-CREATE TABLE usage_logs (
+CREATE TABLE IF NOT EXISTS usage_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     api_key_id UUID REFERENCES api_keys(id) ON DELETE CASCADE,
@@ -66,7 +65,7 @@ CREATE TABLE usage_logs (
 );
 
 -- Create daily_usage_stats table
-CREATE TABLE daily_usage_stats (
+CREATE TABLE IF NOT EXISTS daily_usage_stats (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     date DATE NOT NULL,
@@ -77,7 +76,7 @@ CREATE TABLE daily_usage_stats (
 );
 
 -- Create translation_requests table
-CREATE TABLE translation_requests (
+CREATE TABLE IF NOT EXISTS translation_requests (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     api_key_id UUID REFERENCES api_keys(id) ON DELETE CASCADE,
@@ -92,17 +91,17 @@ CREATE TABLE translation_requests (
 );
 
 -- Create webhook_config table
-CREATE TABLE webhook_config (
+CREATE TABLE IF NOT EXISTS webhook_config (
     id VARCHAR(36) PRIMARY KEY,
-    user_id VARCHAR(36) NOT NULL,
+    user_id UUID NOT NULL,
     webhook_url TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES "user"(id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- Create send_retry table
-CREATE TABLE send_retry (
+CREATE TABLE IF NOT EXISTS send_retry (
     id VARCHAR(36) PRIMARY KEY,
     webhook_id VARCHAR(36) NOT NULL,
     task_id VARCHAR(36) NOT NULL,

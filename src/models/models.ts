@@ -1,4 +1,4 @@
-import { OrderedMap } from 'orderedmap';
+import OrderedMap from 'orderedmap';
 
 export interface TranslationRequest {
   text: string[];

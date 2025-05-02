@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { EntityManager } from '@mikro-orm/core';
 import { UsageLog } from './entities/usage-log.entity';
-import { SubscriptionService } from './subscription.service';
+import { SubscriptionService } from '../subscription/subscription.service';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()

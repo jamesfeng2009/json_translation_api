@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ApiKeyService } from './api-key.service';
 import { UsageService } from './usage.service';
-import { SubscriptionService } from './subscription.service';
+import { SubscriptionService } from '../subscription/subscription.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('user')
