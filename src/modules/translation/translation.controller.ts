@@ -1,30 +1,26 @@
-import { Controller, Post, Body, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, UseGuards, Req } from '@nestjs/common';
 import { TranslationService } from './translation.service';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { TranslationTaskPayload } from './dto/translation-task.dto';
 
 @ApiTags('translation')
 @Controller('translation')
+@ApiBearerAuth()
 export class TranslationController {
   constructor(private readonly translationService: TranslationService) {}
 
-  @Post()
+  @Post('task')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '创建翻译任务' })
-  @ApiResponse({ status: 201, description: '翻译任务创建成功' })
-  async createTranslationTask(
-    @Body()
-    body: {
-      sourceText: string;
-      sourceLanguage: string;
-      targetLanguage: string;
-      userId: string;
-    },
-  ) {
-    return this.translationService.createTranslationTask(
-      body.sourceText,
-      body.sourceLanguage,
-      body.targetLanguage,
-      body.userId,
-    );
+  @ApiResponse({ status: 201, description: '成功创建翻译任务' })
+  @ApiResponse({ status: 400, description: '请求参数错误' })
+  @ApiResponse({ status: 401, description: '未授权' })
+  async createTranslationTask(@Req() req: any, @Body() payload: TranslationTaskPayload) {
+    return this.translationService.createTranslationTask({
+      ...payload,
+      userId: req.user.id,
+    });
   }
 
   @Get(':id')

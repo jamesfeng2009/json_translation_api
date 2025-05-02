@@ -1,13 +1,19 @@
 import { Module } from '@nestjs/common';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
-import { User } from '../../entities/user.entity';
-import { SubscriptionController } from './subscription.controller';
-import { SubscriptionService } from './subscription.service';
+import { SubscriptionController } from './controllers/subscription.controller';
+import { SubscriptionService } from './services/subscription.service';
+import { StripeService } from './services/stripe.service';
+import { SubscriptionPlan } from './entities/subscription-plan.entity';
+import { UserSubscription } from './entities/user-subscription.entity';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
-  imports: [MikroOrmModule.forFeature([User])],
+  imports: [
+    MikroOrmModule.forFeature([SubscriptionPlan, UserSubscription]),
+    ConfigModule,
+  ],
   controllers: [SubscriptionController],
-  providers: [SubscriptionService],
+  providers: [SubscriptionService, StripeService],
   exports: [SubscriptionService],
 })
 export class SubscriptionModule {} 

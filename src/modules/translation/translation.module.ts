@@ -1,22 +1,23 @@
 import { Module } from '@nestjs/common';
-import { MikroOrmModule } from '@mikro-orm/nestjs';
-import { Translation } from '../../entities/translation.entity';
-import { TranslationService } from './translation.service';
 import { TranslationController } from './translation.controller';
-import { BullModule } from '@nestjs/bull';
-import { TranslationProcessor } from './translation.processor';
-import { WebhookModule } from '../webhook/webhook.module';
+import { TranslationService } from './translation.service';
+import { MikroOrmModule } from '@mikro-orm/nestjs';
+import { TranslationTask, UserJsonData, CharacterUsageLog, CharacterUsageLogDaily, WebhookConfig } from './entities/translation-task.entity';
+import { HttpModule } from '@nestjs/axios';
 
 @Module({
   imports: [
-    MikroOrmModule.forFeature([Translation]),
-    BullModule.registerQueue({
-      name: 'translation',
-    }),
-    WebhookModule,
+    MikroOrmModule.forFeature([
+      TranslationTask,
+      UserJsonData,
+      CharacterUsageLog,
+      CharacterUsageLogDaily,
+      WebhookConfig,
+    ]),
+    HttpModule,
   ],
   controllers: [TranslationController],
-  providers: [TranslationService, TranslationProcessor],
+  providers: [TranslationService],
   exports: [TranslationService],
 })
 export class TranslationModule {} 
