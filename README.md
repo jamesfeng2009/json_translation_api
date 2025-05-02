@@ -64,10 +64,36 @@ PORT=3000
 NODE_ENV=development
 ```
 
-5. Start the application:
+5. Set up the database:
+   - Create a new PostgreSQL database
+   - Run the database initialization script (contact maintainers for the script)
+   - The script will create all necessary tables, indexes, and initial data
+
+6. Start the application:
 ```bash
 npm run start:dev
 ```
+
+## Database Setup
+
+The application requires a PostgreSQL database with the following structure:
+
+### Required Tables
+- `users`: Stores user information and subscription details
+- `api_keys`: Manages API keys for authentication
+- `usage_logs`: Tracks API usage and performance metrics
+- `subscription_plans`: Defines available subscription tiers
+- `subscription_history`: Records subscription changes
+- `translation_requests`: Stores translation job details
+
+### Database Features
+- UUID primary keys
+- Automatic timestamp management
+- Usage limit enforcement
+- Monthly usage tracking and reset
+- Comprehensive indexing for performance
+
+For detailed database schema and setup instructions, please contact the maintainers.
 
 ## API Documentation
 
