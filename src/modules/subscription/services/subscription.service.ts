@@ -36,7 +36,7 @@ export class SubscriptionService {
         description: 'Perfect for small projects and personal use',
         tier: SubscriptionTier.HOBBY,
         price: 19,
-        monthlyCharacterLimit: 100000,
+        monthlyCharacterLimit: 1200000,
         features: [
           '100,000 characters per month',
           'Priority support',
@@ -49,7 +49,7 @@ export class SubscriptionService {
         description: 'Ideal for growing businesses',
         tier: SubscriptionTier.STANDARD,
         price: 99,
-        monthlyCharacterLimit: 1000000,
+        monthlyCharacterLimit: 7000000,
         features: [
           '1,000,000 characters per month',
           'Priority support',
@@ -63,7 +63,7 @@ export class SubscriptionService {
         description: 'Enterprise-grade solution',
         tier: SubscriptionTier.PREMIUM,
         price: 399,
-        monthlyCharacterLimit: 10000000,
+        monthlyCharacterLimit: 30000000,
         features: [
           '10,000,000 characters per month',
           '24/7 priority support',

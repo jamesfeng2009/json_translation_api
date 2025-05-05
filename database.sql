@@ -8,7 +8,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email VARCHAR(255) UNIQUE NOT NULL,
-    password_hash VARCHAR(255),
+    password VARCHAR(255),
     first_name VARCHAR(255),
     last_name VARCHAR(255),
     is_active BOOLEAN DEFAULT TRUE,
@@ -261,16 +261,16 @@ DECLARE
     v_subscription_status VARCHAR(50);
 BEGIN
     -- Get user's subscription status and plan limit
-    SELECT 
+    SELECT
         sp.monthly_character_limit,
         us.status
-    INTO 
+    INTO
         v_plan_limit,
         v_subscription_status
-    FROM 
+    FROM
         user_subscriptions us
         JOIN subscription_plans sp ON us.plan_id = sp.id
-    WHERE 
+    WHERE
         us.user_id = p_user_id
         AND us.status = 'active'
         AND CURRENT_TIMESTAMP BETWEEN us.current_period_start AND us.current_period_end;
@@ -307,4 +307,4 @@ COMMENT ON COLUMN send_retry.task_id IS 'Translation task ID';
 COMMENT ON COLUMN send_retry.attempt IS 'Retry attempt number';
 COMMENT ON COLUMN send_retry.status IS 'Retry status (success/failed)';
 COMMENT ON COLUMN send_retry.payload IS 'Webhook payload data';
-COMMENT ON COLUMN send_retry.created_at IS 'Record creation timestamp'; 
+COMMENT ON COLUMN send_retry.created_at IS 'Record creation timestamp';
