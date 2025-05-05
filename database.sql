@@ -130,6 +130,20 @@ CREATE TABLE usage_log (
     CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
+-- Create payment_logs table
+CREATE TABLE IF NOT EXISTS payment_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id),
+    order_id VARCHAR(64),
+    stripe_payment_intent_id VARCHAR(255),
+    event_type VARCHAR(64), -- created, succeeded, failed, refunded, webhook_received, etc.
+    amount DECIMAL(10,2),
+    currency VARCHAR(8),
+    status VARCHAR(32), -- pending, succeeded, failed, refunded
+    raw_data JSONB,     -- Stripe 回调原始数据或本地请求数据
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create indexes
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_api_keys_key ON api_keys(key);
@@ -145,6 +159,9 @@ CREATE INDEX idx_user_subscriptions_plan_id ON user_subscriptions(plan_id);
 CREATE INDEX idx_webhook_config_user_id ON webhook_config(user_id);
 CREATE INDEX idx_send_retry_webhook_id ON send_retry(webhook_id);
 CREATE INDEX idx_send_retry_created_at ON send_retry(created_at);
+CREATE INDEX idx_payment_logs_user_id ON payment_logs(user_id);
+CREATE INDEX idx_payment_logs_stripe_payment_intent_id ON payment_logs(stripe_payment_intent_id);
+CREATE INDEX idx_payment_logs_event_type ON payment_logs(event_type);
 
 -- Insert initial subscription plans
 INSERT INTO subscription_plans (
