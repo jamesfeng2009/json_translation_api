@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { RetryConfig } from '../interfaces/retry-config.interface';
+import { RetryConfigService } from '../services/retry-config.service';
 
-export function Retry(maxAttempts = 3, delay = 1000) {
+export function Retry(config?: RetryConfig | number) {
   return function (
     target: any,
     propertyKey: string,
@@ -10,21 +12,28 @@ export function Retry(maxAttempts = 3, delay = 1000) {
     const originalMethod = descriptor.value;
 
     descriptor.value = async function (...args: any[]) {
-      let lastError: Error;
-      let attempt = 0;
+      const retryConfigService = this.retryConfigService as RetryConfigService;
+      const retryConfig = typeof config === 'number'
+        ? { maxAttempts: config, delay: 1000 }
+        : config || retryConfigService.getStripeConfig();
 
-      while (attempt < maxAttempts) {
+      let lastError: Error;
+      for (let attempt = 1; attempt <= retryConfig.maxAttempts; attempt++) {
         try {
           return await originalMethod.apply(this, args);
         } catch (error) {
           lastError = error;
-          attempt++;
-          if (attempt < maxAttempts) {
-            await new Promise((resolve) => setTimeout(resolve, delay));
+          if (attempt === retryConfig.maxAttempts) {
+            throw error;
           }
+
+          const delay = retryConfig.backoff
+            ? retryConfig.delay * Math.pow(retryConfig.backoffFactor || 2, attempt - 1)
+            : retryConfig.delay;
+
+          await new Promise(resolve => setTimeout(resolve, delay));
         }
       }
-
       throw lastError;
     };
 

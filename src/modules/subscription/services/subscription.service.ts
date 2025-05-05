@@ -3,6 +3,8 @@ import { EntityManager } from '@mikro-orm/core';
 import { SubscriptionPlan, SubscriptionTier } from '../entities/subscription-plan.entity';
 import { UserSubscription } from '../entities/user-subscription.entity';
 import { StripeService } from './stripe.service';
+import { UsageService } from '../../user/usage.service';
+import { Retry } from '../../../common/decorators/retry.decorator';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -12,6 +14,7 @@ export class SubscriptionService {
   constructor(
     private readonly em: EntityManager,
     private readonly stripeService: StripeService,
+    private readonly usageService: UsageService,
   ) {}
 
   async initializeSubscriptionPlans(): Promise<void> {
@@ -97,46 +100,76 @@ export class SubscriptionService {
     return this.em.findOne(UserSubscription, { user: userId });
   }
 
+  @Retry({ maxAttempts: 3, delay: 1000 })
   async createCheckoutSession(
     userId: string,
     planId: string,
     successUrl: string,
     cancelUrl: string,
   ): Promise<string> {
-    return this.stripeService.createCheckoutSession(userId, planId, successUrl, cancelUrl);
+    try {
+      return await this.stripeService.createCheckoutSession(
+        userId,
+        planId,
+        successUrl,
+        cancelUrl,
+      );
+    } catch (error) {
+      this.logger.error(`Failed to create checkout session: ${error.message}`);
+      throw error;
+    }
   }
 
+  @Retry({ maxAttempts: 3, delay: 1000 })
   async cancelSubscription(userId: string): Promise<void> {
-    const subscription = await this.getUserSubscription(userId);
-    if (!subscription) {
-      throw new Error('No active subscription found');
-    }
+    try {
+      const subscription = await this.getUserSubscription(userId);
+      if (!subscription) {
+        throw new Error('No active subscription found');
+      }
 
-    subscription.cancelAtPeriodEnd = true;
-    await this.em.persistAndFlush(subscription);
+      subscription.cancelAtPeriodEnd = true;
+      await this.em.persistAndFlush(subscription);
+    } catch (error) {
+      this.logger.error(`Failed to cancel subscription: ${error.message}`);
+      throw error;
+    }
   }
 
   async getSubscriptionUsage(userId: string): Promise<{
     currentUsage: number;
     limit: number;
     percentage: number;
+    remaining: number;
+    isOverLimit: boolean;
   }> {
-    const subscription = await this.getUserSubscription(userId);
-    if (!subscription) {
-      throw new Error('No active subscription found');
+    try {
+      const subscription = await this.getUserSubscription(userId);
+      if (!subscription) {
+        throw new Error('No active subscription found');
+      }
+
+      const plan = await this.em.findOne(SubscriptionPlan, {
+        id: subscription.plan.id,
+      });
+
+      // 获取当前月份的使用量
+      const currentUsage = await this.usageService.getCurrentUsage(userId);
+      const limit = plan.monthlyCharacterLimit;
+      const percentage = (currentUsage / limit) * 100;
+      const remaining = Math.max(0, limit - currentUsage);
+      const isOverLimit = currentUsage >= limit;
+
+      return {
+        currentUsage,
+        limit,
+        percentage,
+        remaining,
+        isOverLimit,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to get subscription usage: ${error.message}`);
+      throw error;
     }
-
-    const plan = await this.em.findOne(SubscriptionPlan, {
-      id: subscription.plan.id,
-    });
-
-    // TODO: 实现实际的使用量统计
-    const currentUsage = 0; // 从数据库获取实际使用量
-
-    return {
-      currentUsage,
-      limit: plan.monthlyCharacterLimit,
-      percentage: (currentUsage / plan.monthlyCharacterLimit) * 100,
-    };
   }
 } 

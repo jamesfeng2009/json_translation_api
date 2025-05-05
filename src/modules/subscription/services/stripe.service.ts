@@ -4,6 +4,8 @@ import Stripe from 'stripe';
 import { SubscriptionPlan, SubscriptionTier } from '../entities/subscription-plan.entity';
 import { UserSubscription, SubscriptionStatus } from '../entities/user-subscription.entity';
 import { EntityManager } from '@mikro-orm/core';
+import { Retry } from '../../../common/decorators/retry.decorator';
+import { RetryConfigService } from '../../../common/services/retry-config.service';
 
 @Injectable()
 export class StripeService {
@@ -13,12 +15,14 @@ export class StripeService {
   constructor(
     private readonly configService: ConfigService,
     private readonly em: EntityManager,
+    private readonly retryConfigService: RetryConfigService,
   ) {
     this.stripe = new Stripe(this.configService.get('STRIPE_SECRET_KEY'), {
       apiVersion: '2023-08-16',
     });
   }
 
+  @Retry()
   async createSubscriptionPlan(plan: SubscriptionPlan): Promise<void> {
     try {
       // 创建 Stripe 产品
@@ -47,6 +51,7 @@ export class StripeService {
     }
   }
 
+  @Retry()
   async createCheckoutSession(
     userId: string,
     planId: string,
@@ -83,6 +88,18 @@ export class StripeService {
     }
   }
 
+  @Retry()
+  async createCustomer(email: string): Promise<Stripe.Customer> {
+    try {
+      return await this.stripe.customers.create({
+        email,
+      });
+    } catch (error) {
+      this.logger.error(`Failed to create Stripe customer: ${error.message}`);
+      throw error;
+    }
+  }
+
   async handleWebhookEvent(payload: any, signature: string): Promise<void> {
     try {
       const event = this.stripe.webhooks.constructEvent(
@@ -101,6 +118,15 @@ export class StripeService {
         case 'customer.subscription.deleted':
           await this.handleSubscriptionDeleted(event.data.object);
           break;
+        case 'invoice.payment_succeeded':
+          await this.handleInvoicePaymentSucceeded(event.data.object);
+          break;
+        case 'invoice.payment_failed':
+          await this.handleInvoicePaymentFailed(event.data.object);
+          break;
+        case 'customer.subscription.trial_will_end':
+          await this.handleSubscriptionTrialWillEnd(event.data.object);
+          break;
         default:
           this.logger.log(`Unhandled event type: ${event.type}`);
       }
@@ -111,45 +137,111 @@ export class StripeService {
   }
 
   private async handleCheckoutSessionCompleted(session: Stripe.Checkout.Session): Promise<void> {
-    const { userId, planId } = session.metadata;
-    const subscription = await this.stripe.subscriptions.retrieve(session.subscription as string);
+    try {
+      const { userId, planId } = session.metadata;
+      const subscription = await this.stripe.subscriptions.retrieve(session.subscription as string);
 
-    const userSubscription = this.em.create(UserSubscription, {
-      id: subscription.id,
-      user: userId,
-      plan: planId,
-      stripeSubscriptionId: subscription.id,
-      status: SubscriptionStatus.ACTIVE,
-      currentPeriodStart: new Date(subscription.current_period_start * 1000),
-      currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-    });
+      const userSubscription = this.em.create(UserSubscription, {
+        id: subscription.id,
+        user: userId,
+        plan: planId,
+        stripeSubscriptionId: subscription.id,
+        status: SubscriptionStatus.ACTIVE,
+        currentPeriodStart: new Date(subscription.current_period_start * 1000),
+        currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+      });
 
-    await this.em.persistAndFlush(userSubscription);
+      await this.em.persistAndFlush(userSubscription);
+    } catch (error) {
+      this.logger.error(`Failed to handle checkout session completed: ${error.message}`);
+      throw error;
+    }
   }
 
   private async handleSubscriptionUpdated(subscription: Stripe.Subscription): Promise<void> {
-    const userSubscription = await this.em.findOne(UserSubscription, {
-      stripeSubscriptionId: subscription.id,
-    });
+    try {
+      const userSubscription = await this.em.findOne(UserSubscription, {
+        stripeSubscriptionId: subscription.id,
+      });
 
-    if (userSubscription) {
-      userSubscription.status = subscription.status as SubscriptionStatus;
-      userSubscription.currentPeriodStart = new Date(subscription.current_period_start * 1000);
-      userSubscription.currentPeriodEnd = new Date(subscription.current_period_end * 1000);
-      userSubscription.cancelAtPeriodEnd = subscription.cancel_at_period_end;
+      if (userSubscription) {
+        userSubscription.status = subscription.status as SubscriptionStatus;
+        userSubscription.currentPeriodStart = new Date(subscription.current_period_start * 1000);
+        userSubscription.currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+        userSubscription.cancelAtPeriodEnd = subscription.cancel_at_period_end;
 
-      await this.em.persistAndFlush(userSubscription);
+        await this.em.persistAndFlush(userSubscription);
+      }
+    } catch (error) {
+      this.logger.error(`Failed to handle subscription updated: ${error.message}`);
+      throw error;
     }
   }
 
   private async handleSubscriptionDeleted(subscription: Stripe.Subscription): Promise<void> {
-    const userSubscription = await this.em.findOne(UserSubscription, {
-      stripeSubscriptionId: subscription.id,
-    });
+    try {
+      const userSubscription = await this.em.findOne(UserSubscription, {
+        stripeSubscriptionId: subscription.id,
+      });
 
-    if (userSubscription) {
-      userSubscription.status = SubscriptionStatus.CANCELED;
-      await this.em.persistAndFlush(userSubscription);
+      if (userSubscription) {
+        userSubscription.status = SubscriptionStatus.CANCELED;
+        await this.em.persistAndFlush(userSubscription);
+      }
+    } catch (error) {
+      this.logger.error(`Failed to handle subscription deleted: ${error.message}`);
+      throw error;
+    }
+  }
+
+  private async handleInvoicePaymentSucceeded(invoice: Stripe.Invoice): Promise<void> {
+    try {
+      const subscription = await this.stripe.subscriptions.retrieve(invoice.subscription as string);
+      const userSubscription = await this.em.findOne(UserSubscription, {
+        stripeSubscriptionId: subscription.id,
+      });
+
+      if (userSubscription) {
+        userSubscription.status = SubscriptionStatus.ACTIVE;
+        userSubscription.lastPaymentDate = new Date();
+        await this.em.persistAndFlush(userSubscription);
+      }
+    } catch (error) {
+      this.logger.error(`Failed to handle invoice payment succeeded: ${error.message}`);
+      throw error;
+    }
+  }
+
+  private async handleInvoicePaymentFailed(invoice: Stripe.Invoice): Promise<void> {
+    try {
+      const subscription = await this.stripe.subscriptions.retrieve(invoice.subscription as string);
+      const userSubscription = await this.em.findOne(UserSubscription, {
+        stripeSubscriptionId: subscription.id,
+      });
+
+      if (userSubscription) {
+        userSubscription.status = SubscriptionStatus.PAST_DUE;
+        await this.em.persistAndFlush(userSubscription);
+      }
+    } catch (error) {
+      this.logger.error(`Failed to handle invoice payment failed: ${error.message}`);
+      throw error;
+    }
+  }
+
+  private async handleSubscriptionTrialWillEnd(subscription: Stripe.Subscription): Promise<void> {
+    try {
+      const userSubscription = await this.em.findOne(UserSubscription, {
+        stripeSubscriptionId: subscription.id,
+      });
+
+      if (userSubscription) {
+        // 可以在这里添加发送提醒邮件的逻辑
+        this.logger.log(`Trial will end soon for subscription: ${subscription.id}`);
+      }
+    } catch (error) {
+      this.logger.error(`Failed to handle subscription trial will end: ${error.message}`);
+      throw error;
     }
   }
 } 

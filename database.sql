@@ -8,10 +8,19 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email VARCHAR(255) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    name VARCHAR(255),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    password_hash VARCHAR(255),
+    first_name VARCHAR(255),
+    last_name VARCHAR(255),
+    is_active BOOLEAN DEFAULT TRUE,
+    last_login_at TIMESTAMP,
+    stripe_customer_id VARCHAR(255),
+    picture VARCHAR(512),
+    provider VARCHAR(32) NOT NULL DEFAULT 'local',
+    provider_id VARCHAR(255),
+    subscription_plan_id UUID,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT fk_subscription_plan FOREIGN KEY (subscription_plan_id) REFERENCES subscription_plans(id)
 );
 
 -- Create api_keys table
@@ -110,6 +119,15 @@ CREATE TABLE IF NOT EXISTS send_retry (
     payload TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (webhook_id) REFERENCES webhook_config(id) ON DELETE CASCADE
+);
+
+-- Create usage_log table
+CREATE TABLE usage_log (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL,
+    characters_count INTEGER NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
 -- Create indexes

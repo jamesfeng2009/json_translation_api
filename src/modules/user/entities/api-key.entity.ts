@@ -1,20 +1,21 @@
-import { Entity, PrimaryKey, Property, ManyToOne } from '@mikro-orm/core';
+import { Entity, Property, ManyToOne } from '@mikro-orm/core';
+import { BaseEntity } from '../../../common/entities/base.entity';
 import { User } from './user.entity';
 
 @Entity()
-export class ApiKey {
-  @PrimaryKey()
-  id!: string;
+export class ApiKey extends BaseEntity {
+  @Property()
+  name!: string;
 
   @Property()
   key!: string;
 
+  @Property()
+  isActive: boolean = true;
+
+  @Property({ nullable: true })
+  lastUsedAt?: Date;
+
   @ManyToOne(() => User)
   user!: User;
-
-  @Property()
-  createdAt: Date = new Date();
-
-  @Property({ onUpdate: () => new Date() })
-  updatedAt: Date = new Date();
 } 
