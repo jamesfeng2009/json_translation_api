@@ -9,6 +9,7 @@ import { SubscriptionModule } from './modules/subscription/subscription.module';
 import { TranslationModule } from './modules/translation/translation.module';
 import { WebhookModule } from './modules/webhook/webhook.module';
 import { WorkerModule } from './modules/worker/worker.module';
+import { PaymentModule } from './modules/payment/payment.module';
 import { CustomLogger } from './common/utils/logger.service';
 import { CircuitBreakerService } from './common/utils/circuit-breaker.service';
 import { Options } from '@mikro-orm/core';
@@ -45,6 +46,7 @@ import { Options } from '@mikro-orm/core';
     TranslationModule,
     WebhookModule,
     WorkerModule,
+    PaymentModule,
   ],
   providers: [CustomLogger, CircuitBreakerService],
 })

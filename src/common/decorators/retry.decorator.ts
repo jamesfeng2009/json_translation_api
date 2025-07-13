@@ -13,9 +13,16 @@ export function Retry(config?: RetryConfig | number) {
 
     descriptor.value = async function (...args: any[]) {
       const retryConfigService = this.retryConfigService as RetryConfigService;
+      
+      // 安全检查，如果retryConfigService不存在，使用默认配置
       const retryConfig = typeof config === 'number'
         ? { maxAttempts: config, delay: 1000 }
-        : config || retryConfigService.getStripeConfig();
+        : config || (retryConfigService?.getStripeConfig?.() || {
+            maxAttempts: 3,
+            delay: 1000,
+            backoff: true,
+            backoffFactor: 2,
+          });
 
       let lastError: Error;
       for (let attempt = 1; attempt <= retryConfig.maxAttempts; attempt++) {

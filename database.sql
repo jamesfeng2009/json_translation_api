@@ -144,6 +144,27 @@ CREATE TABLE IF NOT EXISTS payment_logs (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create reconciliation_reports table
+CREATE TABLE IF NOT EXISTS reconciliation_reports (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    report_date TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    type VARCHAR(20) NOT NULL DEFAULT 'daily', -- daily, weekly, monthly, manual
+    status VARCHAR(20) NOT NULL DEFAULT 'pending', -- pending, in_progress, completed, failed
+    start_date TIMESTAMP WITH TIME ZONE,
+    end_date TIMESTAMP WITH TIME ZONE,
+    total_local_records INTEGER DEFAULT 0,
+    total_stripe_records INTEGER DEFAULT 0,
+    total_local_amount DECIMAL(10,2) DEFAULT 0,
+    total_stripe_amount DECIMAL(10,2) DEFAULT 0,
+    discrepancy_count INTEGER DEFAULT 0,
+    discrepancies JSONB, -- 差异详情
+    summary JSONB, -- 摘要统计
+    error_message TEXT,
+    processed_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create indexes
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_api_keys_key ON api_keys(key);
@@ -162,6 +183,9 @@ CREATE INDEX idx_send_retry_created_at ON send_retry(created_at);
 CREATE INDEX idx_payment_logs_user_id ON payment_logs(user_id);
 CREATE INDEX idx_payment_logs_stripe_payment_intent_id ON payment_logs(stripe_payment_intent_id);
 CREATE INDEX idx_payment_logs_event_type ON payment_logs(event_type);
+CREATE INDEX idx_reconciliation_reports_report_date ON reconciliation_reports(report_date);
+CREATE INDEX idx_reconciliation_reports_status ON reconciliation_reports(status);
+CREATE INDEX idx_reconciliation_reports_type ON reconciliation_reports(type);
 
 -- Insert initial subscription plans
 INSERT INTO subscription_plans (
