@@ -8,7 +8,6 @@ import { ReconciliationService } from './services/reconciliation.service';
 import { ReconciliationSchedulerService } from './services/reconciliation-scheduler.service';
 import { DiscrepancyHandlerService } from './services/discrepancy-handler.service';
 import { ReconciliationController } from './controllers/reconciliation.controller';
-import { EmailService } from '../../common/services/email.service';
 import { SubscriptionModule } from '../subscription/subscription.module';
 
 @Module({
@@ -23,7 +22,6 @@ import { SubscriptionModule } from '../subscription/subscription.module';
     ReconciliationService,
     ReconciliationSchedulerService,
     DiscrepancyHandlerService,
-    EmailService,
   ],
   exports: [
     PaymentLogService,

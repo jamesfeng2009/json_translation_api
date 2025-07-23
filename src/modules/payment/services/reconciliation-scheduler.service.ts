@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ReconciliationService } from './reconciliation.service';
 import { ReconciliationType } from '../entities/reconciliation-report.entity';
-import { EmailService } from '../../../common/services/email.service';
 
 @Injectable()
 export class ReconciliationSchedulerService {
@@ -10,7 +9,6 @@ export class ReconciliationSchedulerService {
 
   constructor(
     private readonly reconciliationService: ReconciliationService,
-    private readonly emailService: EmailService,
   ) {}
 
   /**
@@ -31,15 +29,15 @@ export class ReconciliationSchedulerService {
         ReconciliationType.DAILY,
       );
 
-      // 如果有差异，发送邮件通知
+      // 如果有差异，记录警报
       if (result.discrepancies.length > 0) {
-        await this.sendReconciliationAlert(result);
+        this.logReconciliationAlert(result);
       }
 
       this.logger.log(`Daily reconciliation completed with ${result.discrepancies.length} discrepancies`);
     } catch (error) {
       this.logger.error(`Daily reconciliation failed: ${error.message}`);
-      await this.sendReconciliationErrorAlert(error);
+      this.logReconciliationError(error);
     }
   }
 
@@ -61,13 +59,13 @@ export class ReconciliationSchedulerService {
         ReconciliationType.WEEKLY,
       );
 
-      // 发送周对账报告
-      await this.sendWeeklyReconciliationReport(result);
+      // 记录周对账报告
+      this.logWeeklyReconciliationReport(result);
 
       this.logger.log(`Weekly reconciliation completed with ${result.discrepancies.length} discrepancies`);
     } catch (error) {
       this.logger.error(`Weekly reconciliation failed: ${error.message}`);
-      await this.sendReconciliationErrorAlert(error);
+      this.logReconciliationError(error);
     }
   }
 
@@ -89,104 +87,50 @@ export class ReconciliationSchedulerService {
         ReconciliationType.MONTHLY,
       );
 
-      // 发送月对账报告
-      await this.sendMonthlyReconciliationReport(result);
+      // 记录月对账报告
+      this.logMonthlyReconciliationReport(result);
 
       this.logger.log(`Monthly reconciliation completed with ${result.discrepancies.length} discrepancies`);
     } catch (error) {
       this.logger.error(`Monthly reconciliation failed: ${error.message}`);
-      await this.sendReconciliationErrorAlert(error);
+      this.logReconciliationError(error);
     }
   }
 
   /**
-   * 发送对账差异警报
+   * 记录对账差异警报
    */
-  private async sendReconciliationAlert(result: any) {
-    try {
-      const summary = await this.reconciliationService.generateReportSummary(result.report.id);
-      
-      await this.emailService.sendEmail({
-        to: process.env.RECONCILIATION_ALERT_EMAIL || 'admin@example.com',
-        subject: `[对账警报] 发现 ${result.discrepancies.length} 个差异`,
-        html: `
-          <h2>对账差异警报</h2>
-          <p>在对账过程中发现了 ${result.discrepancies.length} 个差异，请及时处理。</p>
-          <h3>报告摘要</h3>
-          <pre>${summary}</pre>
-          <h3>差异详情</h3>
-          <ul>
-            ${result.discrepancies.map((d: any) => `<li>${d.description}</li>`).join('')}
-          </ul>
-          <p>报告ID: ${result.report.id}</p>
-        `,
-      });
-    } catch (error) {
-      this.logger.error(`Failed to send reconciliation alert: ${error.message}`);
-    }
+  private logReconciliationAlert(result: any) {
+    const alertEmail = process.env.RECONCILIATION_ALERT_EMAIL || 'admin@example.com';
+    this.logger.warn(`[EMAIL ALERT] Would send to ${alertEmail}: [对账警报] 发现 ${result.discrepancies.length} 个差异`);
+    this.logger.debug(`[EMAIL CONTENT] 差异详情: ${JSON.stringify(result.discrepancies.map((d: any) => d.description))}`);
   }
 
   /**
-   * 发送对账错误警报
+   * 记录对账错误警报
    */
-  private async sendReconciliationErrorAlert(error: any) {
-    try {
-      await this.emailService.sendEmail({
-        to: process.env.RECONCILIATION_ALERT_EMAIL || 'admin@example.com',
-        subject: '[对账错误] 自动对账失败',
-        html: `
-          <h2>对账错误警报</h2>
-          <p>自动对账过程中发生了错误，请检查系统状态。</p>
-          <h3>错误详情</h3>
-          <pre>${error.message}</pre>
-          <pre>${error.stack}</pre>
-        `,
-      });
-    } catch (emailError) {
-      this.logger.error(`Failed to send reconciliation error alert: ${emailError.message}`);
-    }
+  private logReconciliationError(error: any) {
+    const alertEmail = process.env.RECONCILIATION_ALERT_EMAIL || 'admin@example.com';
+    this.logger.error(`[EMAIL ALERT] Would send to ${alertEmail}: [对账错误] 自动对账失败`);
+    this.logger.error(`[EMAIL CONTENT] 错误详情: ${error.message}`);
   }
 
   /**
-   * 发送周对账报告
+   * 记录周对账报告
    */
-  private async sendWeeklyReconciliationReport(result: any) {
-    try {
-      const summary = await this.reconciliationService.generateReportSummary(result.report.id);
-      
-      await this.emailService.sendEmail({
-        to: process.env.RECONCILIATION_REPORT_EMAIL || 'finance@example.com',
-        subject: `[周对账报告] ${result.report.reportDate.toISOString().split('T')[0]}`,
-        html: `
-          <h2>周对账报告</h2>
-          <pre>${summary}</pre>
-          <p>报告ID: ${result.report.id}</p>
-        `,
-      });
-    } catch (error) {
-      this.logger.error(`Failed to send weekly reconciliation report: ${error.message}`);
-    }
+  private logWeeklyReconciliationReport(result: any) {
+    const reportEmail = process.env.RECONCILIATION_REPORT_EMAIL || 'finance@example.com';
+    this.logger.log(`[EMAIL REPORT] Would send weekly report to ${reportEmail}`);
+    this.logger.debug(`[EMAIL CONTENT] 周对账报告: ${result.report.id}`);
   }
 
   /**
-   * 发送月对账报告
+   * 记录月对账报告
    */
-  private async sendMonthlyReconciliationReport(result: any) {
-    try {
-      const summary = await this.reconciliationService.generateReportSummary(result.report.id);
-      
-      await this.emailService.sendEmail({
-        to: process.env.RECONCILIATION_REPORT_EMAIL || 'finance@example.com',
-        subject: `[月对账报告] ${result.report.reportDate.toISOString().split('T')[0]}`,
-        html: `
-          <h2>月对账报告</h2>
-          <pre>${summary}</pre>
-          <p>报告ID: ${result.report.id}</p>
-        `,
-      });
-    } catch (error) {
-      this.logger.error(`Failed to send monthly reconciliation report: ${error.message}`);
-    }
+  private logMonthlyReconciliationReport(result: any) {
+    const reportEmail = process.env.RECONCILIATION_REPORT_EMAIL || 'finance@example.com';
+    this.logger.log(`[EMAIL REPORT] Would send monthly report to ${reportEmail}`);
+    this.logger.debug(`[EMAIL CONTENT] 月对账报告: ${result.report.id}`);
   }
 
   /**
