@@ -36,8 +36,8 @@ export enum ReconciliationStatus {
 @Index({ properties: ['reconciliationStatus'] })
 @Index({ properties: ['createdAt'] })
 export class EnhancedPaymentLog extends BaseEntity {
-  @ManyToOne(() => User)
-  user!: User;
+  @ManyToOne(() => User, { nullable: true })
+  user?: User;
 
   @Property({ nullable: true })
   orderId?: string;
