@@ -47,7 +47,7 @@ export class ChargeDisputeHandler {
     try {
       // Get charge information to find the original payment intent
       const charge = await this.getChargeInfo(dispute.charge as string);
-      const originalPaymentIntentId = charge?.payment_intent as string;
+      const originalPaymentIntentId = charge?.payment_intent as string || dispute.id;
       
       // If user is not provided, try to find it from the charge
       if (!user && charge?.customer) {
@@ -175,17 +175,17 @@ export class ChargeDisputeHandler {
    * Determine urgency level based on dispute characteristics
    */
   private determineUrgencyLevel(dispute: Stripe.Dispute): 'low' | 'medium' | 'high' | 'critical' {
-    const amount = dispute.amount / 100;
+    const amount = dispute.amount; // Keep in cents for comparison
     const dueDate = dispute.evidence_details?.due_by;
     const reason = dispute.reason;
 
     // Critical: High value disputes or fraud-related
-    if (amount > 100000 || reason === 'fraudulent') { // $1000+ or fraud
+    if (amount >= 150000 || reason === 'fraudulent') { // $1500+ or fraud
       return 'critical';
     }
 
     // High: Medium-high value or urgent timeline
-    if (amount > 50000) { // $500+
+    if (amount >= 75000) { // $750+
       return 'high';
     }
 
@@ -305,9 +305,9 @@ export class ChargeDisputeHandler {
         recommendedAction = 'investigate';
     }
 
-    // Adjust based on amount
-    const amount = dispute.amount / 100;
-    if (amount < 2500) { // Less than $25
+    // Adjust based on amount - only override for very small amounts
+    const amount = dispute.amount; // Keep in cents for comparison
+    if (amount <= 1000 && recommendedAction !== 'dispute') { // $10 or less and not a clear dispute case
       recommendedAction = 'accept'; // May not be worth disputing
     }
 

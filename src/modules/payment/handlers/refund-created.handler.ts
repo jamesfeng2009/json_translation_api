@@ -46,7 +46,7 @@ export class RefundCreatedHandler {
     try {
       // Get charge information to find the original payment intent
       const charge = await this.getChargeInfo(refund.charge as string);
-      const originalPaymentIntentId = charge?.payment_intent as string;
+      const originalPaymentIntentId = charge?.payment_intent as string || refund.id;
       
       // If user is not provided, try to find it from the charge
       if (!user && charge?.customer) {
@@ -244,10 +244,10 @@ export class RefundCreatedHandler {
     let urgency: 'low' | 'medium' | 'high' = 'medium';
     if (refund.reason === 'fraudulent') {
       urgency = 'high';
+    } else if (refund.amount >= 10000) { // $100+ refunds
+      urgency = 'high';
     } else if (refund.reason === 'requested_by_customer') {
       urgency = 'low';
-    } else if (refund.amount > 10000) { // $100+ refunds
-      urgency = 'high';
     }
 
     return { type, reason, urgency };
