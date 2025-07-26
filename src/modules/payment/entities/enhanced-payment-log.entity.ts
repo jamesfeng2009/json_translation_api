@@ -31,10 +31,6 @@ export enum ReconciliationStatus {
 }
 
 @Entity()
-@Index({ properties: ['stripeEventId'] })
-@Index({ properties: ['stripePaymentIntentId'] })
-@Index({ properties: ['reconciliationStatus'] })
-@Index({ properties: ['createdAt'] })
 export class EnhancedPaymentLog extends BaseEntity {
   @ManyToOne(() => User, { nullable: true })
   user?: User;
@@ -43,7 +39,6 @@ export class EnhancedPaymentLog extends BaseEntity {
   orderId?: string;
 
   @Property({ unique: true })
-  @Index()
   stripeEventId!: string; // Stripe 事件 ID，用于幂等性
 
   @Property()

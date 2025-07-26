@@ -67,9 +67,6 @@ export interface ReconciliationResults {
 }
 
 @Entity()
-@Index({ properties: ['type', 'status'] })
-@Index({ properties: ['startDate', 'endDate'] })
-@Index({ properties: ['createdAt'] })
 export class ReconciliationSession extends BaseEntity {
     @Enum(() => ReconciliationType)
     type!: ReconciliationType;

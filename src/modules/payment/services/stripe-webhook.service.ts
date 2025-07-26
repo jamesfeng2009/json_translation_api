@@ -4,7 +4,10 @@ import { EntityManager } from '@mikro-orm/core';
 import Stripe from 'stripe';
 import { IdempotencyService } from '../../../common/services/idempotency.service';
 import { PaymentLogService } from './payment-log.service';
+import { PaymentDisputeService } from './payment-dispute.service';
 import { RetryConfigService } from '../../../common/services/retry-config.service';
+import { SystemMetricsService } from '../../monitoring/services/system-metrics.service';
+import { AuditLogService } from '../../audit/services/audit-log.service';
 import { 
   EnhancedPaymentLog, 
   PaymentEventType as EnhancedPaymentEventType, 
@@ -12,8 +15,17 @@ import {
   ReconciliationStatus 
 } from '../entities/enhanced-payment-log.entity';
 import { PaymentEventType, PaymentStatus } from '../entities/payment-log.entity';
+import { WebhookEvent, WebhookEventType, ProcessingStatus } from '../entities/webhook-event.entity';
+import { PaymentRefund, RefundStatus, RefundReason } from '../entities/payment-refund.entity';
+import { PaymentDispute, DisputeStatus, DisputeReason } from '../entities/payment-dispute.entity';
 import { User } from '../../user/entities/user.entity';
 import { Retry } from '../../../common/decorators/retry.decorator';
+import { 
+  AuditAction, 
+  ResourceType, 
+  MetricCategory,
+  AuditSeverity 
+} from '../../../models/models';
 
 export interface WebhookProcessResult {
   eventId: string;
@@ -45,7 +57,10 @@ export class StripeWebhookService {
     private readonly em: EntityManager,
     private readonly idempotencyService: IdempotencyService,
     private readonly paymentLogService: PaymentLogService,
+    private readonly paymentDisputeService: PaymentDisputeService,
     private readonly retryConfigService: RetryConfigService,
+    private readonly metricsService: SystemMetricsService,
+    private readonly auditLogService: AuditLogService,
   ) {
     this.stripe = new Stripe(this.configService.get('STRIPE_SECRET_KEY'), {
       apiVersion: '2023-08-16',

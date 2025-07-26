@@ -10,6 +10,10 @@ import { TranslationModule } from './modules/translation/translation.module';
 import { WebhookModule } from './modules/webhook/webhook.module';
 import { WorkerModule } from './modules/worker/worker.module';
 import { PaymentModule } from './modules/payment/payment.module';
+import { PaymentEnhancedModule } from './modules/payment/payment-enhanced.module';
+import { AuditModule } from './modules/audit/audit.module';
+import { MonitoringModule } from './modules/monitoring/monitoring.module';
+import { CommonModule } from './common/common.module';
 import { CustomLogger } from './common/utils/logger.service';
 import { CircuitBreakerService } from './common/utils/circuit-breaker.service';
 import { Options } from '@mikro-orm/core';
@@ -47,6 +51,10 @@ import { Options } from '@mikro-orm/core';
     WebhookModule,
     WorkerModule,
     PaymentModule,
+    PaymentEnhancedModule,
+    AuditModule,
+    MonitoringModule,
+    CommonModule,
   ],
   providers: [CustomLogger, CircuitBreakerService],
 })

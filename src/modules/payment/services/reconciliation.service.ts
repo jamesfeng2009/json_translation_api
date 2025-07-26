@@ -1,3 +1,6 @@
+
+
+
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EntityManager, QueryOrder } from '@mikro-orm/core';
@@ -1482,5 +1485,48 @@ export class ReconciliationService {
       orderBy: { createdAt: QueryOrder.DESC },
       limit,
     });
+  }
+
+  /**
+   * 生成对账报告摘要
+   */
+  async generateReportSummary(reportId: string): Promise<any> {
+    const report = await this.em.findOne(ReconciliationReport, { id: reportId });
+    
+    if (!report) {
+      throw new NotFoundException(`Report with ID ${reportId} not found`);
+    }
+
+    return {
+      reportId: report.id,
+      status: report.status,
+      type: report.type,
+      totalLocalRecords: report.totalLocalRecords || 0,
+      totalStripeRecords: report.totalStripeRecords || 0,
+      matchedRecords: Math.max(0, (report.totalLocalRecords || 0) - (report.discrepancyCount || 0)),
+      discrepancyCount: report.discrepancyCount,
+      createdAt: report.createdAt,
+      completedAt: report.processedAt,
+      summary: report.summary || {},
+    };
+  }
+
+  /**
+   * 清理过期的对账会话
+   */
+  async cleanupExpiredSessions(daysOld: number = 30): Promise<number> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+
+    const expiredSessions = await this.em.find(ReconciliationSession, {
+      createdAt: { $lt: cutoffDate },
+      status: { $in: [SessionStatus.COMPLETED, SessionStatus.FAILED, SessionStatus.CANCELED] },
+    });
+
+    if (expiredSessions.length > 0) {
+      await this.em.removeAndFlush(expiredSessions);
+    }
+
+    return expiredSessions.length;
   }
 }

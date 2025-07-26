@@ -191,7 +191,7 @@ describe('ChargeDisputeHandler', () => {
     });
 
     it('should handle charge retrieval failure', async () => {
-      mockStripe.charges.retrieve.mockResolvedValue(null);
+      (mockStripe.charges.retrieve as jest.Mock).mockResolvedValue(null);
       const mockPaymentLog = { id: 'log-1' } as EnhancedPaymentLog;
       mockEntityManager.create.mockReturnValue(mockPaymentLog);
       mockEntityManager.persistAndFlush.mockResolvedValue(undefined);
@@ -204,7 +204,7 @@ describe('ChargeDisputeHandler', () => {
 
     it('should handle database errors gracefully', async () => {
       const error = new Error('Database connection failed');
-      mockStripe.charges.retrieve.mockResolvedValue(mockCharge);
+      (mockStripe.charges.retrieve as jest.Mock).mockResolvedValue(mockCharge);
       mockEntityManager.create.mockReturnValue({} as EnhancedPaymentLog);
       mockEntityManager.persistAndFlush.mockRejectedValue(error);
 
@@ -437,7 +437,7 @@ describe('ChargeDisputeHandler', () => {
 
   describe('checkDisputePatterns', () => {
     it('should detect multiple disputes from same customer', async () => {
-      mockStripe.charges.retrieve.mockResolvedValue(mockCharge);
+      (mockStripe.charges.retrieve as jest.Mock).mockResolvedValue(mockCharge);
       mockEntityManager.count.mockResolvedValueOnce(3); // Multiple disputes from same customer
       mockEntityManager.count.mockResolvedValueOnce(1); // Normal frequency for reason
 
@@ -449,7 +449,7 @@ describe('ChargeDisputeHandler', () => {
     });
 
     it('should detect high frequency of similar disputes', async () => {
-      mockStripe.charges.retrieve.mockResolvedValue(mockCharge);
+      (mockStripe.charges.retrieve as jest.Mock).mockResolvedValue(mockCharge);
       mockEntityManager.count.mockResolvedValueOnce(1); // Normal customer disputes
       mockEntityManager.count.mockResolvedValueOnce(5); // High frequency of fraudulent disputes
 
@@ -461,7 +461,7 @@ describe('ChargeDisputeHandler', () => {
     });
 
     it('should return no patterns for normal disputes', async () => {
-      mockStripe.charges.retrieve.mockResolvedValue(mockCharge);
+      (mockStripe.charges.retrieve as jest.Mock).mockResolvedValue(mockCharge);
       mockEntityManager.count.mockResolvedValueOnce(1); // Normal customer disputes
       mockEntityManager.count.mockResolvedValueOnce(1); // Normal frequency for reason
 
@@ -473,7 +473,7 @@ describe('ChargeDisputeHandler', () => {
     });
 
     it('should handle errors gracefully', async () => {
-      mockStripe.charges.retrieve.mockRejectedValue(new Error('Stripe error'));
+      (mockStripe.charges.retrieve as jest.Mock).mockRejectedValue(new Error('Stripe error'));
 
       const result = await handler.checkDisputePatterns(mockDispute);
 
@@ -508,7 +508,7 @@ describe('ChargeDisputeHandler', () => {
 
     it('should process normally when no enhanced log exists', async () => {
       mockEntityManager.findOne.mockResolvedValue(null);
-      mockStripe.charges.retrieve.mockResolvedValue(mockCharge);
+      (mockStripe.charges.retrieve as jest.Mock).mockResolvedValue(mockCharge);
       const mockPaymentLog = { id: 'log-1' } as EnhancedPaymentLog;
       mockEntityManager.create.mockReturnValue(mockPaymentLog);
       mockEntityManager.persistAndFlush.mockResolvedValue(undefined);

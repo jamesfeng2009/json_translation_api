@@ -38,6 +38,9 @@ export interface AlertContext {
   metadata?: Record<string, any>;
   relatedAlerts?: string[];
   affectedUsers?: string[];
+  issues?: any[];
+  anomalies?: any[];
+  timestamp?: Date;
   estimatedImpact?: {
     severity: string;
     scope: string;
@@ -62,10 +65,6 @@ export interface AlertNotificationSettings {
 }
 
 @Entity()
-@Index({ properties: ['type', 'severity'] })
-@Index({ properties: ['status'] })
-@Index({ properties: ['createdAt'] })
-@Index({ properties: ['acknowledgedBy'] })
 export class Alert extends BaseEntity {
   @Enum(() => AlertType)
   type!: AlertType;

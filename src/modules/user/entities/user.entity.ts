@@ -17,7 +17,6 @@ export class User extends BaseEntity {
   id!: string;
 
   @Property()
-  @Unique()
   email!: string;
 
   @Property({ nullable: true })
