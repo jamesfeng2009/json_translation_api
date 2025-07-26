@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
 import { StripeWebhookController } from '../stripe-webhook.controller';
 import { StripeWebhookService } from '../../services/stripe-webhook.service';
+import { WebhookRetryService } from '../../services/webhook-retry.service';
 import { StripeWebhookGuard } from '../../guards/stripe-webhook.guard';
 
 describe('StripeWebhookController', () => {
@@ -24,6 +25,14 @@ describe('StripeWebhookController', () => {
         {
           provide: StripeWebhookService,
           useValue: mockWebhookService,
+        },
+        {
+          provide: WebhookRetryService,
+          useValue: {
+            retryFailedWebhook: jest.fn(),
+            getRetryStatus: jest.fn(),
+            scheduleRetry: jest.fn(),
+          },
         },
       ],
     })

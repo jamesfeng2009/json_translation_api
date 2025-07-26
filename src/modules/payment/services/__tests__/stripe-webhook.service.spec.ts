@@ -6,6 +6,10 @@ import Stripe from 'stripe';
 import { StripeWebhookService } from '../stripe-webhook.service';
 import { IdempotencyService } from '../../../../common/services/idempotency.service';
 import { PaymentLogService } from '../payment-log.service';
+import { PaymentDisputeService } from '../payment-dispute.service';
+import { RetryConfigService } from '../../../../common/services/retry-config.service';
+import { SystemMetricsService } from '../../../monitoring/services/system-metrics.service';
+import { AuditLogService } from '../../../audit/services/audit-log.service';
 import { 
   EnhancedPaymentLog, 
   ReconciliationStatus,
@@ -81,6 +85,35 @@ describe('StripeWebhookService', () => {
         {
           provide: PaymentLogService,
           useValue: mockPaymentLogService,
+        },
+        {
+          provide: PaymentDisputeService,
+          useValue: {
+            createDispute: jest.fn(),
+            updateDispute: jest.fn(),
+            findDispute: jest.fn(),
+          },
+        },
+        {
+          provide: RetryConfigService,
+          useValue: {
+            getRetryConfig: jest.fn().mockReturnValue({ maxRetries: 3, delay: 1000 }),
+          },
+        },
+        {
+          provide: SystemMetricsService,
+          useValue: {
+            recordMetric: jest.fn(),
+            incrementCounter: jest.fn(),
+            recordTiming: jest.fn(),
+          },
+        },
+        {
+          provide: AuditLogService,
+          useValue: {
+            createAuditLog: jest.fn(),
+            logAction: jest.fn(),
+          },
         },
       ],
     }).compile();

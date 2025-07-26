@@ -23,12 +23,28 @@ describe('StripeWebhookGuard', () => {
   };
 
   const mockConfigService = {
-    get: jest.fn(),
+    get: jest.fn().mockImplementation((key: string) => {
+      if (key === 'STRIPE_WEBHOOK_SECRET') {
+        return 'whsec_test_secret';
+      }
+      return null;
+    }),
   };
 
   beforeEach(async () => {
     // Setup Stripe mock
     mockStripe = mockStripeInstance;
+
+    // Setup config service mock before creating the module
+    mockConfigService.get.mockImplementation((key: string) => {
+      if (key === 'STRIPE_WEBHOOK_SECRET') {
+        return 'whsec_test_secret';
+      }
+      if (key === 'STRIPE_SECRET_KEY') {
+        return 'sk_test_secret';
+      }
+      return null;
+    });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
